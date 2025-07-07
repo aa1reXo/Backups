@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  multimodal-rag-service:
+    build: .
+    container_name: multimodal-rag-service
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./pdfs:/app/pdfs
+    environment:
+      - PYTHONPATH=/app
+      - CHROMA_DB_IMPL=duckdb+parquet
+      - PERSIST_DIRECTORY=/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - rag-network
+
+  # Optional: Add a simple web interface
+  web-ui:
+    image: nginx:alpine
+    container_name: qualcomm-rag-ui
+    ports:
+      - "8081:80"
+    volumes:
+      - ./web-ui:/usr/share/nginx/html
+    depends_on:
+      - multimodal-rag-service
+    restart: unless-stopped
+    profiles:
+      - ui
+
+volumes:
+  data:
+  logs:
+
+networks:
+  rag-network:
+    driver: bridge 
