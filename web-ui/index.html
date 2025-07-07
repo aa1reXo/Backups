@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multimodal RAG Q&A Service</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card h2 {
+            color: #4a5568;
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #718096 0%, #4a5568 100%);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+        }
+
+        .response {
+            background: #f7fafc;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-top: 20px;
+            border-radius: 8px;
+        }
+
+        .response h3 {
+            color: #4a5568;
+            margin-bottom: 15px;
+        }
+
+        .response p {
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-item {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #718096;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        .source-item {
+            background: #f7fafc;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 3px solid #48bb78;
+        }
+
+        .source-item h4 {
+            color: #4a5568;
+            margin-bottom: 8px;
+        }
+
+        .source-item p {
+            color: #718096;
+            font-size: 0.9rem;
+            margin: 5px 0;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #718096;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fed7d7;
+            border-left: 4px solid #e53e3e;
+            color: #c53030;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .success {
+            background: #c6f6d5;
+            border-left: 4px solid #48bb78;
+            color: #2f855a;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab.active {
+            background: #667eea;
+            color: white;
+            border-bottom-color: #4c51bf;
+        }
+
+        .tab:hover:not(.active) {
+            background: #f7fafc;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Multimodal RAG Q&A Service</h1>
+            <p>Advanced PDF processing with OCR and multimodal capabilities</p>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('query')">Query</div>
+            <div class="tab" onclick="switchTab('create')">Create DB</div>
+            <div class="tab" onclick="switchTab('context')">Context</div>
+            <div class="tab" onclick="switchTab('info')">System Info</div>
+        </div>
+
+        <!-- Query Tab -->
+        <div id="query" class="tab-content active">
+            <div class="card">
+                <h2>Ask Questions</h2>
+                <div class="form-group">
+                    <label for="question">Question:</label>
+                    <textarea id="question" rows="3" placeholder="Enter your question here..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="maxResults">Max Results:</label>
+                    <select id="maxResults">
+                        <option value="3">3</option>
+                        <option value="5" selected>5</option>
+                        <option value="10">10</option>
+                    </select>
+                </div>
+                <button class="btn" onclick="askQuestion()">Ask Question</button>
+                <button class="btn btn-secondary" onclick="clearResponse()">Clear</button>
+            </div>
+            <div id="queryResponse"></div>
+        </div>
+
+        <!-- Create DB Tab -->
+        <div id="create" class="tab-content">
+            <div class="card">
+                <h2>Create Vector Database</h2>
+                <div class="form-group">
+                    <label for="folderPath">PDF Folder Path:</label>
+                    <input type="text" id="folderPath" value="/app/pdfs" placeholder="Enter folder path containing PDFs">
+                </div>
+                <button class="btn btn-success" onclick="createDatabase()">Create Database</button>
+                <button class="btn btn-secondary" onclick="clearCreateResponse()">Clear</button>
+            </div>
+            <div id="createResponse"></div>
+        </div>
+
+        <!-- Context Tab -->
+        <div id="context" class="tab-content">
+            <div class="card">
+                <h2>Get Context</h2>
+                <div class="form-group">
+                    <label for="contextQuestion">Question:</label>
+                    <textarea id="contextQuestion" rows="3" placeholder="Enter question to get context..."></textarea>
+                </div>
+                <button class="btn btn-warning" onclick="getContext()">Get Context</button>
+                <button class="btn btn-secondary" onclick="clearContextResponse()">Clear</button>
+            </div>
+            <div id="contextResponse"></div>
+        </div>
+
+        <!-- System Info Tab -->
+        <div id="info" class="tab-content">
+            <div class="card">
+                <h2>System Information</h2>
+                <button class="btn" onclick="loadSystemInfo()">Load System Info</button>
+                <button class="btn btn-secondary" onclick="loadStats()">Load Statistics</button>
+                <button class="btn btn-warning" onclick="loadCollections()">Load Collections</button>
+            </div>
+            <div id="infoResponse"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        const API_KEY = 'AIzaSyAVBDGK6lP9SjFuAG0c3VxJ3Jly25LUBy0';
+
+        function switchTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName).classList.add('active');
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+        }
+
+        function showLoading(elementId) {
+            document.getElementById(elementId).innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Processing...</p>
+                </div>
+            `;
+        }
+
+        function showError(elementId, message) {
+            document.getElementById(elementId).innerHTML = `
+                <div class="error">
+                    <h3>Error</h3>
+                    <p>${message}</p>
+                </div>
+            `;
+        }
+
+        function showSuccess(elementId, message) {
+            document.getElementById(elementId).innerHTML = `
+                <div class="success">
+                    <h3>Success</h3>
+                    <p>${message}</p>
+                </div>
+            `;
+        }
+
+        async function askQuestion() {
+            const question = document.getElementById('question').value.trim();
+            const maxResults = parseInt(document.getElementById('maxResults').value);
+            
+            if (!question) {
+                showError('queryResponse', 'Please enter a question.');
+                return;
+            }
+
+            showLoading('queryResponse');
+
+            try {
+                const response = await fetch(`${API_BASE}/query`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        question: question,
+                        max_results: maxResults,
+                        include_sources: true
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    let html = `
+                        <div class="response">
+                            <h3>Answer</h3>
+                            <p>${data.answer}</p>
+                            
+                            <div class="stats">
+                                <div class="stat-item">
+                                    <div class="stat-value">${(data.total_time * 1000).toFixed(2)}ms</div>
+                                    <div class="stat-label">Response Time</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value">${data.sources.length}</div>
+                                    <div class="stat-label">Sources</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value">${data.total_tokens}</div>
+                                    <div class="stat-label">Tokens Used</div>
+                                </div>
+                            </div>
+                    `;
+
+                    if (data.sources && data.sources.length > 0) {
+                        html += '<h3>Sources</h3>';
+                        data.sources.forEach((source, index) => {
+                            html += `
+                                <div class="source-item">
+                                    <h4>Source ${index + 1}</h4>
+                                    <p><strong>Document:</strong> ${source.doc_name}</p>
+                                    <p><strong>Chunk Index:</strong> ${source.chunk_index}</p>
+                                    <p><strong>Relevance Score:</strong> ${(source.relevance_score * 100).toFixed(1)}%</p>
+                                </div>
+                            `;
+                        });
+                    }
+
+                    html += '</div>';
+                    document.getElementById('queryResponse').innerHTML = html;
+                } else {
+                    showError('queryResponse', `Error: ${data.detail || 'Unknown error'}`);
+                }
+            } catch (error) {
+                showError('queryResponse', `Network error: ${error.message}`);
+            }
+        }
+
+        async function createDatabase() {
+            const folderPath = document.getElementById('folderPath').value.trim();
+            
+            if (!folderPath) {
+                showError('createResponse', 'Please enter a folder path.');
+                return;
+            }
+
+            showLoading('createResponse');
+
+            try {
+                const response = await fetch(`${API_BASE}/create`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        folder_path: folderPath
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.status === 'success') {
+                    let html = `
+                        <div class="success">
+                            <h3>Database Created Successfully</h3>
+                            <p><strong>Message:</strong> ${data.message}</p>
+                            <p><strong>Processing Time:</strong> ${data.processing_time.toFixed(2)}s</p>
+                        </div>
+                    `;
+
+                    if (data.stats) {
+                        const stats = data.stats;
+                        html += `
+                            <div class="card">
+                                <h3>Processing Statistics</h3>
+                                <div class="stats">
+                                    <div class="stat-item">
+                                        <div class="stat-value">${stats.total_chunks || 0}</div>
+                                        <div class="stat-label">Total Chunks</div>
+                                    </div>
+                                    <div class="stat-item">
+                                        <div class="stat-value">${stats.documents_processed || 0}</div>
+                                        <div class="stat-label">Documents Processed</div>
+                                    </div>
+                                    <div class="stat-item">
+                                        <div class="stat-value">${stats.total_words || 0}</div>
+                                        <div class="stat-label">Total Words</div>
+                                    </div>
+                                    <div class="stat-item">
+                                        <div class="stat-value">${stats.total_tokens || 0}</div>
+                                        <div class="stat-label">Total Tokens</div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    document.getElementById('createResponse').innerHTML = html;
+                } else {
+                    showError('createResponse', `Error: ${data.detail || data.message || 'Unknown error'}`);
+                }
+            } catch (error) {
+                showError('createResponse', `Network error: ${error.message}`);
+            }
+        }
+
+        async function getContext() {
+            const question = document.getElementById('contextQuestion').value.trim();
+            
+            if (!question) {
+                showError('contextResponse', 'Please enter a question.');
+                return;
+            }
+
+            showLoading('contextResponse');
+
+            try {
+                const response = await fetch(`${API_BASE}/context`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        question: question
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    let html = `
+                        <div class="response">
+                            <h3>Context for: "${data.question}"</h3>
+                            <p><strong>Total Chunks:</strong> ${data.total_chunks}</p>
+                        </div>
+                    `;
+
+                    if (data.context_chunks && data.context_chunks.length > 0) {
+                        html += '<div class="card"><h3>Context Chunks</h3>';
+                        data.context_chunks.forEach((chunk, index) => {
+                            html += `
+                                <div class="source-item">
+                                    <h4>Chunk ${index + 1}</h4>
+                                    <p><strong>Document:</strong> ${chunk.doc_name}</p>
+                                    <p><strong>Chunk Index:</strong> ${chunk.chunk_index}</p>
+                                    <p><strong>Content:</strong></p>
+                                    <div class="chunk-content">${chunk.content}</div>
+                                </div>
+                            `;
+                        });
+                        html += '</div>';
+                    }
+
+                    document.getElementById('contextResponse').innerHTML = html;
+                } else {
+                    showError('contextResponse', `Error: ${data.detail || 'Unknown error'}`);
+                }
+            } catch (error) {
+                showError('contextResponse', `Network error: ${error.message}`);
+            }
+        }
+
+        async function loadSystemInfo() {
+            showLoading('infoResponse');
+
+            try {
+                const response = await fetch(`${API_BASE}/info`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${API_KEY}`
+                    }
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('infoResponse').innerHTML = `
+                        <div class="card">
+                            <h3>System Information</h3>
+                            <div class="stats">
+                                <div class="stat-item">
+                                    <div class="stat-value">${data.team_name}</div>
+                                    <div class="stat-label">Team Name</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value">${data.model_info}</div>
+                                    <div class="stat-label">Model Info</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value">${data.docs_count}</div>
+                                    <div class="stat-label">Documents</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value">${data.total_chunks}</div>
+                                    <div class="stat-label">Total Chunks</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value">${data.vector_db}</div>
+                                    <div class="stat-label">Vector DB</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value">${data.embedding_model}</div>
+                                    <div class="stat-label">Embedding Model</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value">${data.chunk_size}</div>
+                                    <div class="stat-label">Chunk Size</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value">${data.chunk_overlap}</div>
+                                    <div class="stat-label">Chunk Overlap</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    showError('infoResponse', `Error: ${data.detail || 'Unknown error'}`);
+                }
+            } catch (error) {
+                showError('infoResponse', `Network error: ${error.message}`);
+            }
+        }
+
+        async function loadStats() {
+            showLoading('infoResponse');
+
+            try {
+                const response = await fetch(`${API_BASE}/stats`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${API_KEY}`
+                    }
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('infoResponse').innerHTML = `
+                        <div class="card">
+                            <h3>System Statistics</h3>
+                            <div class="stats">
+                                <div class="stat-item">
+                                    <div class="stat-value">${data.total_queries}</div>
+                                    <div class="stat-label">Total Queries</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value">${data.avg_response_time_ms.toFixed(2)}ms</div>
+                                    <div class="stat-label">Avg Response Time</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value">${Math.floor(data.uptime_seconds / 60)}m ${data.uptime_seconds % 60}s</div>
+                                    <div class="stat-label">Uptime</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    showError('infoResponse', `Error: ${data.detail || 'Unknown error'}`);
+                }
+            } catch (error) {
+                showError('infoResponse', `Network error: ${error.message}`);
+            }
+        }
+
+        async function loadCollections() {
+            showLoading('infoResponse');
+
+            try {
+                const response = await fetch(`${API_BASE}/collections`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${API_KEY}`
+                    }
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    let html = `
+                        <div class="card">
+                            <h3>Collections</h3>
+                            <p><strong>Total Collections:</strong> ${data.total_collections}</p>
+                        </div>
+                    `;
+
+                    if (data.collections && data.collections.length > 0) {
+                        html += '<div class="card"><h3>Available Collections</h3>';
+                        data.collections.forEach(collection => {
+                            html += `
+                                <div class="source-item">
+                                    <h4>${collection}</h4>
+                                </div>
+                            `;
+                        });
+                        html += '</div>';
+                    }
+
+                    document.getElementById('infoResponse').innerHTML = html;
+                } else {
+                    showError('infoResponse', `Error: ${data.detail || 'Unknown error'}`);
+                }
+            } catch (error) {
+                showError('infoResponse', `Network error: ${error.message}`);
+            }
+        }
+
+        function clearResponse() {
+            document.getElementById('queryResponse').innerHTML = '';
+            document.getElementById('question').value = '';
+        }
+
+        function clearCreateResponse() {
+            document.getElementById('createResponse').innerHTML = '';
+            document.getElementById('folderPath').value = '/app/pdfs';
+        }
+
+        function clearContextResponse() {
+            document.getElementById('contextResponse').innerHTML = '';
+            document.getElementById('contextQuestion').value = '';
+        }
+
+        // Load system info on page load
+        window.onload = function() {
+            loadSystemInfo();
+        };
+    </script>
+</body>
+</html> 
